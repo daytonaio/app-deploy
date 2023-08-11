@@ -1,0 +1,4 @@
+ingress:
+  enabled: true
+  host: longhorn.local
+  defaultReplicaCount: 1

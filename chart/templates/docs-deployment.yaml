@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: docs
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.docs.autoscaling.enabled }}
+  replicas: {{ .Values.components.docs.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: docs
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: docs
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        component: docs
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+#      serviceAccountName: {{ include "codeanywhere.serviceAccountName" . }}
+      initContainers:
+        - name: branding
+          image: "{{ .Values.image.repository }}/{{ .Values.components.branding.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['sh', '-c', 'cp -r /branding/docs/* /assets/']
+          volumeMounts:
+            - name: branding
+              mountPath: /assets
+      containers:
+        - name: docs
+          image: "{{ .Values.image.repository }}/{{ .Values.components.docs.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+          env:
+            - name: "PORT"
+              value: "3000"
+            - name: "SITE_URL"
+              value: "https://docs.{{ .Values.common.domain }}"
+            - name: "BASE_URL"
+              value: "https://docs.{{ .Values.common.domain }}"
+            - name: "LOGIN_BASE_URL"
+              value: "https://accounts.{{ .Values.common.domain }}"
+            - name: "APP_NAME"
+              value: {{ .Values.configuration.appName | quote }}
+            - name: "APP_TWITTER_HANDLE"
+              value: {{ .Values.components.docs.appTwitterHandle | quote }}
+            - name: "APP_IMAGE_URL"
+              value: {{ .Values.components.docs.appImageUrl | quote }}
+            - name: "APP_SUPPORT_EMAIL"
+              value: {{ .Values.components.docs.appSupportEmail | quote }}
+            - name: "APP_LOGIN_URL"
+              value: {{ .Values.components.docs.appLoginUrl | quote }}
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.components.docs.resources | nindent 12 }}
+          volumeMounts:
+            - name: branding
+              mountPath: /app/public/branding
+            - name: config
+              mountPath: /app/dist/client/configuration.json
+              subPath: configuration.json
+      volumes:
+        - name: branding
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: docs-config

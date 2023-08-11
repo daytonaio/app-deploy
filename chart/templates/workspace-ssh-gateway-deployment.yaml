@@ -1,0 +1,61 @@
+{{- if .Values.configuration.singleClusterDeployment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-ssh-gateway
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: workspace-ssh-gateway
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.workspaceSSHGateway.autoscaling.enabled }}
+  replicas: {{ .Values.components.workspaceSSHGateway.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: workspace-ssh-gateway
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: workspace-ssh-gateway
+      labels:
+        component: workspace-ssh-gateway
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}/{{ .Values.components.workspaceSSHGateway.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: "SSH_BASTION_PORT"
+              value: "22222"
+            - name: "HOST_KEY"
+              value: "/keys/tls.key"
+            - name: "WORKSPACE_NAMESPACE"
+              value: {{ .Values.common.workspaceNamespace | quote }}
+#          TODO
+#          livenessProbe:
+#            httpGet:
+#              path: /heartbeat
+#              port: 3000
+#          readinessProbe:
+#            httpGet:
+#              path: /heartbeat
+#              port: 3000
+          resources:
+            {{- toYaml .Values.components.workspaceSSHGateway.resources | nindent 12 }}
+
+          volumeMounts:
+            - name: keys
+              mountPath: /keys
+              readOnly: true
+      volumes:
+      - name: keys
+        secret:
+          secretName: workspace-ssh-gateway
+{{- end }}

@@ -1,0 +1,25 @@
+{{- if .Values.configuration.singleClusterDeployment }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-ssh-gateway
+  {{- if .Values.components.workspaceSSHGateway.service.annotations }}
+  annotations:
+  {{- range $key, $value := .Values.components.workspaceSSHGateway.service.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: workspace-ssh-gateway
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.components.workspaceSSHGateway.service.type }}
+  ports:
+    - port: 22
+      targetPort: 22222
+      protocol: TCP
+      name: ssh
+  selector:
+    component: workspace-ssh-gateway
+{{- end }}

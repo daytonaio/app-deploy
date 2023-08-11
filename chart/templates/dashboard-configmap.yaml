@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-config
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+data:
+  configuration.json: |
+    {
+      "production": true,
+      "apiBaseUrl": "https://api.{{ .Values.common.domain }}",
+      "keycloak": {
+        "url": {{ .Values.common.keycloak.url | quote }},
+        "realm": {{ .Values.common.keycloak.realm | quote }},
+        "clientId": {{ .Values.common.keycloak.dashboard.clientId | quote }}
+      },
+      "notificationUrl": "wss://notification.{{ .Values.common.domain }}",
+      "sshDomain": "ssh.{{ or .Values.common.workspaceDomain .Values.common.domain }}",
+      "workspaceTemplatesIndexUrl": "https://raw.githubusercontent.com/Codeanywhere-Templates/index/main/templates.json",
+      "docsUrl": "https://docs.{{ .Values.common.domain }}",
+      "defaultClusterRegion": {{ .Values.components.dashboard.defaultClusterRegion | quote }},
+      "singleClusterDomain": "{{ or .Values.common.workspaceDomain .Values.common.domain }}",
+      "singleClusterDeployment": {{ .Values.configuration.singleClusterDeployment | quote }},
+      "workspaceUnusedTimeoutInSeconds": {{ .Values.configuration.workspaceUnusedTimeoutInSeconds | quote }}
+    }

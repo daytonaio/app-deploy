@@ -1,0 +1,189 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-provisioner
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: workspace-provisioner
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.workspaceProvisioner.autoscaling.enabled }}
+  replicas: {{ .Values.components.workspaceProvisioner.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: workspace-provisioner
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: workspace-provisioner
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        component: workspace-provisioner
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: workspace-provisioner
+      containers:
+        - name: workspace-provisioner
+          image: "{{ .Values.image.repository }}/{{ .Values.components.workspaceProvisioner.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "30m"
+          env:
+            - name: "PORT"
+              value: "3000"
+            - name: "BASE_DOMAIN"
+              value: "{{ .Values.common.domain }}"
+            - name: "BASE_URL"
+              value: "https://{{ .Values.common.domain }}"
+            - name: "API_BASE_URL"
+              value: "https://api.{{ .Values.common.domain }}"
+            {{- if .Values.postgresql.enabled }}
+            - name: "DB_HOST"
+              value: {{ template "codeanywhere.postgres.name" . }}
+            - name: "DB_PORT"
+              value: "5432"
+            - name: "DB_USER"
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: "DB_PASS"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: {{ .Release.Name }}-postgresql
+            - name: "DB_NAME"
+              value: {{ .Values.postgresql.auth.database | quote }}
+            {{- else }}
+            - name: "DB_HOST"
+              value: {{ .Values.externalDatabase.host | quote }}
+            - name: "DB_PORT"
+              value: {{ .Values.externalDatabase.port | quote }}
+            - name: "DB_USER"
+              value: {{ .Values.externalDatabase.username | quote }}
+            - name: "DB_PASS"
+            {{- if .Values.externalDatabase.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key:  {{ .Values.externalDatabase.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalDatabase.password | quote }}
+            {{- end }}
+            - name: "DB_NAME"
+              value: {{ .Values.externalDatabase.database| quote }}
+            {{- end }}
+            {{- if .Values.rabbitmq.enabled }}
+            - name: "AMQP_HOST"
+              value: {{ template "codeanywhere.rabbitmq.name" . }}
+            - name: "AMQP_PORT"
+              value: "5672"
+            - name: "AMQP_USER"
+              value: "user"
+            - name: "AMQP_PASS"
+              value: "pass"
+            {{- else }}
+            - name: "AMQP_HOST"
+              value: {{ .Values.externalAmqp.host | quote }}
+            - name: "AMQP_PORT"
+              value: {{ .Values.externalAmqp.port | quote }}
+            - name: "AMQP_USER"
+              value: {{ .Values.externalAmqp.username | quote }}
+            - name: "AMQP_PASS"
+            {{- if .Values.externalAmqp.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalAmqp.existingSecret }}
+                  key:  {{ .Values.externalAmqp.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalAmqp.password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: "REDIS_HOST"
+              value: {{ template "codeanywhere.redis.name" . }}
+            - name: "REDIS_PORT"
+              value: "6379"
+            {{- else }}
+            - name: "REDIS_HOST"
+              value: {{ .Values.externalRedis.host | quote }}
+            - name: "REDIS_PORT"
+              value: {{ .Values.externalRedis.port | quote }}
+            {{- end }}
+            - name: "REDIS_KEYPREFIX"
+              value: "ca"
+            - name: "WORKSPACE_NAMESPACE"
+              value: {{ include "codeanywhere.workspaceNamespace" . | quote }}
+            - name: "IDE_IMAGE_DEBIAN"
+              value: {{ .Values.components.workspaceProvisioner.workspaces.ideImageDebian | quote }}
+            - name: "IDE_IMAGE_ALPINE"
+              value: {{ .Values.components.workspaceProvisioner.workspaces.ideImageAlpine | quote }}
+            - name: "WORKSPACE_BASE_IMAGE"
+              value: {{ .Values.common.workspaceBaseImage | quote }}
+            {{- if .Values.imagePullSecrets }}
+            - name: "WORKSPACE_IMAGE_PULL_SECRET"
+              {{- with index .Values.imagePullSecrets 0 }}
+              value: {{ .name | quote }}
+              {{- end }}
+            {{- end }}
+            - name: "WS_DEFAULT_CONTAINER_IMAGE"
+              value: {{ .Values.components.workspaceProvisioner.workspaces.defaultContainerImage | quote }}
+            - name: "WS_DEFAULT_CONTAINER_USER"
+              value: {{ .Values.components.workspaceProvisioner.workspaces.defaultContainerUser | quote }}
+            - name: "WORKSPACE_SUPERVISOR_IMAGE"
+              # TODO: workspace-supervisor from Values.components
+              value: "{{ .Values.image.repository }}/workspace-supervisor:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            # - name: "BUILDKIT_HOST"
+            #   value: "image-builder"
+            # - name: "BUILDKIT_PORT"
+            #   value: "1234"
+            # - name: "NODE_EXTRA_CA_CERTS"
+            #   value: "/certs/ca.crt"
+            # - name: "BUILDKIT_CA_FILE_PATH"
+            #   value: "/certs/ca.crt"
+            # - name: "BUILDKIT_CERT_FILE_PATH"
+            #   value: "/certs/tls.crt"
+            # - name: "BUILDKIT_KEY_FILE_PATH"
+            #   value: "/certs/tls.key"
+            - name: "DOCKER_REGISTRY_URL"
+              value: "codeanywhere-docker-registry.{{ .Release.Namespace }}"
+            - name: "NOTIFICATION_BUS_CONSUMERS"
+              value: {{ .Values.notificationBus.maxConcurrentConsumers | quote }}
+            {{- if .Values.configuration.defaultSubscriptionExpiryInDays }}
+              - name: "DEFAULT_SUBSCRIPTION_EXPIRY_IN_DAYS"
+              value: {{ .Values.configuration.defaultSubscriptionExpiryInDays | quote }}
+            {{- end }}
+            - name: "OIDC_ISSUER"
+              value: {{ printf "%s/realms/%s" .Values.common.keycloak.url .Values.common.keycloak.realm | quote }}
+            - name: "OIDC_AUDIENCE"
+              value: {{ .Values.common.keycloak.api.audience | quote }}
+            - name: "OIDC_CLIENT_ID"
+              value: {{ .Values.common.keycloak.api.clientId | quote }}
+            - name: "OIDC_CLIENT_SECRET"
+              value: {{ .Values.common.keycloak.api.clientSecret | quote }}
+            - name: "SINGLE_CLUSTER_DEPLOYMENT"
+              value: {{ .Values.configuration.singleClusterDeployment | quote }}
+            - name: "ENCRYPTION_SECRET"
+              value: {{ .Values.configuration.encryptionSecret | quote }}
+            - name: "DEFAULT_WORKSPACE_CLASS_NAME"
+              value: {{ .Values.configuration.defaultWorkspaceClassName | quote }}
+            - name: "WORKSPACE_CONTAINER_IMAGE_KATA"
+              value: "{{ .Values.image.repository }}/workspace-container-image-kata:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            - name: "WORKSPACE_CONTAINER_IMAGE_SYSBOX"
+              value: "{{ .Values.image.repository }}/workspace-container-image-sysbox:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            {{- if .Values.components.workspaceProvisioner.workspaces.dockerRegistryMirror }}
+            - name: "DOCKER_REGISTRY_MIRROR"
+              value: {{ .Values.components.workspaceProvisioner.workspaces.dockerRegistryMirror | quote }}
+            {{- end }}
+            - name: "PRELOAD_VOLUME_STORAGE_CLASS"
+              value: "workspace-preload-{{ .Values.image.tag | default .Chart.AppVersion }}"
+          resources:
+            {{- toYaml .Values.components.workspaceProvisioner.resources | nindent 12 }}
+

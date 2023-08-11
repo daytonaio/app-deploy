@@ -1,0 +1,356 @@
+image:
+  repository: registry.gitlab.com/codeanywhere/workspace-service
+  pullPolicy: IfNotPresent
+  tag: ''
+  imagePullSecret:
+    create: false
+    name: ''
+    username: ''
+    password: ''
+
+imagePullSecrets: []
+
+nameOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname
+##
+fullnameOverride: ""
+## @param namespaceOverride String to fully override common.names.namespace
+##
+namespaceOverride: ""
+## @param commonLabels Labels to add to all deployed objects
+##
+commonLabels: {}
+## @param commonAnnotations Annotations to add to all deployed objects
+##
+commonAnnotations: {}
+
+configuration:
+  defaultPlanParallelWorkspaces: 3
+  defaultPlanCredits: 100
+  defaultPlanName: "default"
+  defaultPlanInactivityTimeoutInMinutes: 30
+  defaultPlanBuildCredits: 60
+  defaultPlanParallelBuilds: 1
+  defaultPlanPinnedWorkspaces: 0
+  singleClusterDeployment: true
+  encryptionSecret: supersecret
+  workspaceUnusedTimeoutInSeconds: 1209600
+  appName: Codeanywhere
+  numberOfPrecreatedWorkspaces: 5
+  defaultWorkspaceClassName: kata-2
+  # Leave undefined for non-expiring subscription
+  # defaultSubscriptionExpiryInDays: 30
+  smtp:
+    enabled: false
+    host: ''
+    port: 25
+    username: ''
+    password: ''
+
+externalDatabase:
+  host: ""
+  port: 5432
+  username: ""
+  password: ""
+  database: ""
+  existingSecret: ""
+  existingSecretPasswordKey: "postgres-password"
+
+externalRedis:
+  host: ""
+  port: 6379
+
+externalAmqp:
+  host: ""
+  port: 5672
+  username: ""
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: "rabbitmq-password"
+
+common:
+  keycloak:
+    url: ""
+    realm: ""
+    api:
+      audience: api
+      clientId: api
+      clientSecret: ""
+    dashboard:
+      clientId: dashboard
+    proxy:
+      clientId: proxy
+      clientSecret: ""
+
+  domain: ""
+  workspaceDomain: ""
+  workspaceNamespace: workspace
+  # default container image for workspace base container
+  workspaceBaseImage: codeany/full-ide
+  
+components:
+  workspaceProxy:
+    name: workspace-proxy
+    service:
+      annotations: {}
+      type: LoadBalancer
+    replicaCount: 1
+    autoscaling:
+      enabled: false
+    resources: {}
+
+  workspaceSSHGateway:
+    name: workspace-ssh-gateway
+    replicaCount: 1
+    autoscaling:
+      enabled: false
+    resources: {}
+    service:
+      port: 22
+      type: LoadBalancer
+    annotations: {}
+
+  api:
+    replicaCount: 1
+
+    containerPorts:
+      api: 3000
+      metrics: 9000
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    service:
+      ports:
+        api: 80
+        metrics: 8080
+
+      portNames:
+        api: api 
+        metrics: metrics
+      
+      annotations: {}
+
+    metrics:
+      enabled: false
+      path: /metrics
+
+      serviceMonitor:
+        enabled: false
+        namespace: ""
+        interval: "30s"
+
+    resources: {}
+
+  branding:
+    name: branding
+    
+  dashboard:
+    name: dashboard
+    replicaCount: 1
+
+    service:
+      port: 3000
+
+    paymentPageUrl:
+
+    defaultClusterRegion: us
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    resources: {}
+
+  email:
+    replicaCount: 1
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    from: "Codeanywhere Team <no-reply@codeanywhere.com>"
+    invitationSubject: "Invitation to join Codeanywhere team"
+
+    resources: {}
+
+  domainNotificationPublisher:
+    name: domain-notification-publisher
+    replicaCount: 1
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    resources: {}
+
+  docs:
+    name: docs
+    replicaCount: 1
+    appImageUrl: https://codeanywhere.com/img/backgrounds/codeanywhere-bg.jpg
+    appLoginUrl: https://app.codeanywhere.com
+
+    service:
+      port: 3000
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    resources: {}
+
+  idleWorkspaceWatcher:
+    name: idle-workspace-watcher
+    replicaCount: 1
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    resources: {}
+
+  migration:
+    name: migration
+
+  realtimeServer:
+    name: realtime-server
+    replicaCount: 1
+
+    port: 3000
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    resources: {}
+
+  workspaceProvisioner:
+    name: workspace-provisioner
+    replicaCount: 1
+
+    serviceAccount:
+      name: workspace-provisioner
+      annotations: {}
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    workspaces:
+      runtime: kata-clh
+      # 30 mins
+      idleWorkspaceTimeout: 1800000
+      defaultContainerImage: codeany/universal:latest
+      defaultContainerUser: codeany
+      devContainerRecoveryImage: ubuntu
+      devContainerRecoveryUser: root
+      dockerRegistryMirror: https://registry.codeanywhere.com
+    resources: {}
+
+  workspaceUsage:
+    name: workspace-usage
+    replicaCount: 1
+
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    usageTrackingInterval: 900000 # 15 minutes
+    resources: {}
+
+  workspaceVolumeInit:
+    name: workspace-volume-init
+    # Comma-separated list of images to pull
+    pullImages: codeany/universal
+    namespace: daytona
+    serviceAccountName: workspace-volume-init-job
+
+notificationBus:
+  maxConcurrentConsumers: 100
+
+postgresql:
+  enabled: false
+  image:
+    tag: 14.6.0-debian-11-r13
+  auth:
+    username: codeany
+    database: codeanywhere
+    password: supersecretpass
+
+rabbitmq:
+  enabled: false
+  persistence:
+    enabled: true
+  auth:
+    username: user
+    password: pass
+    existingErlangSecret: messagebus-erlang-cookie
+
+redis:
+  enabled: false
+  auth:
+    enabled: false
+  architecture: standalone
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ''
+
+podAnnotations: {}
+
+proxy:
+  autoscaling:
+    enabled: true
+  replicaCount: 1
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: 'true'
+    nginx.ingress.kubernetes.io/proxy-body-size: 30720m
+
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+cert-manager:
+  ca:
+    issuerName: codeanywhere-ca-issuer
+    certificate:
+      selfSigned: true
+      secretName: codeanywhere-ca-certificate

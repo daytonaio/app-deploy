@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docs-config
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+data:
+  configuration.json: |
+    {
+      "siteUrl": "https://docs.{{ .Values.common.domain }}",
+      "imageUrl": {{ .Values.components.docs.appImageUrl | quote }},
+      "loginUrl": {{ .Values.components.docs.appLoginUrl | quote }}
+    }

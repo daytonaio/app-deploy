@@ -1,0 +1,150 @@
+{{- if .Values.configuration.smtp.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "codelofts.email.fullname" . }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: {{ template "codelofts.email.fullname" . }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.components.email.autoscaling.enabled }}
+  replicas: {{ .Values.components.email.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ template "codelofts.email.fullname" . }}
+  template:
+    metadata:
+      annotations:
+        {{- if .Values.components.email.podAnnotations }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: {{ template "codelofts.email.fullname" . }}
+        {{- if .Values.podLabels }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: branding
+          image: "{{ .Values.image.repository }}/{{ .Values.components.branding.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['sh', '-c', 'cp -r /branding/dashboard/* /assets/']
+          volumeMounts:
+            - name: branding
+              mountPath: /assets
+      containers:
+        - name: email
+          image: "{{ .Values.image.repository }}/email-service:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+          {{- if .Values.resources }}
+          resources: {{- toYaml .Values.components.email.resources | nindent 12 }}
+          {{- end }}
+          env:
+            {{- if .Values.postgresql.enabled }}
+            - name: "DB_HOST"
+              value: {{ template "codeanywhere.postgres.name" . }}
+            - name: "DB_PORT"
+              value: "5432"
+            - name: "DB_USER"
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: "DB_PASS"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: {{ .Release.Name }}-postgresql
+            - name: "DB_NAME"
+              value: {{ .Values.postgresql.auth.database | quote }}
+            {{- else }}
+            - name: "DB_HOST"
+              value: {{ .Values.externalDatabase.host | quote }}
+            - name: "DB_PORT"
+              value: {{ .Values.externalDatabase.port | quote }}
+            - name: "DB_USER"
+              value: {{ .Values.externalDatabase.username | quote }}
+            - name: "DB_PASS"
+            {{- if .Values.externalDatabase.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key:  {{ .Values.externalDatabase.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalDatabase.password | quote }}
+            {{- end }}
+            - name: "DB_NAME"
+              value: {{ .Values.externalDatabase.database| quote }}
+            {{- end }}
+            {{- if .Values.rabbitmq.enabled }}
+            - name: "AMQP_HOST"
+              value: {{ template "codeanywhere.rabbitmq.name" . }}
+            - name: "AMQP_PORT"
+              value: "5672"
+            - name: "AMQP_USER"
+              value: "user"
+            - name: "AMQP_PASS"
+              value: "pass"
+            {{- else }}
+            - name: "AMQP_HOST"
+              value: {{ .Values.externalAmqp.host | quote }}
+            - name: "AMQP_PORT"
+              value: {{ .Values.externalAmqp.port | quote }}
+            - name: "AMQP_USER"
+              value: {{ .Values.externalAmqp.username | quote }}
+            - name: "AMQP_PASS"
+            {{- if .Values.externalAmqp.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalAmqp.existingSecret }}
+                  key:  {{ .Values.externalAmqp.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalAmqp.password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: "REDIS_HOST"
+              value: {{ template "codeanywhere.redis.name" . }}
+            - name: "REDIS_PORT"
+              value: "6379"
+            {{- else }}
+            - name: "REDIS_HOST"
+              value: {{ .Values.externalRedis.host | quote }}
+            - name: "REDIS_PORT"
+              value: {{ .Values.externalRedis.port | quote }}
+            {{- end }}
+            - name: "NOTIFICATION_BUS_CONSUMERS"
+              value: {{ .Values.notificationBus.maxConcurrentConsumers | quote }}
+            {{- if .Values.configuration.defaultSubscriptionExpiryInDays }}
+              - name: "DEFAULT_SUBSCRIPTION_EXPIRY_IN_DAYS"
+              value: {{ .Values.configuration.defaultSubscriptionExpiryInDays | quote }}
+            {{- end }}
+            - name: "SMTP_HOST"
+              value: {{ .Values.configuration.smtp.host | quote }}
+            - name: "SMTP_PORT"
+              value: {{ .Values.configuration.smtp.port | quote }}
+            - name: "SMTP_USER"
+              value: {{ .Values.configuration.smtp.username | quote }}
+            - name: "SMTP_PASS"
+              value: {{ .Values.configuration.smtp.password | quote }}
+            - name: "EMAIL_FROM"
+              value: {{ .Values.components.email.from | quote }}
+            - name: "EMAIL_INVITATION_SUBJECT"
+              value: {{ .Values.components.email.invitationSubject | quote }}
+          resources:
+            {{- toYaml .Values.components.email.resources | nindent 12 }}
+          volumeMounts:
+            - name: branding
+              mountPath: /usr/src/app/branding
+      volumes:
+        - name: branding
+          emptyDir: {}
+{{- end }}

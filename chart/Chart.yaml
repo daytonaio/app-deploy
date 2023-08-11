@@ -1,0 +1,24 @@
+apiVersion: v2
+name: codeanywhere
+description: Codeanywhere Helm Chart
+dependencies:
+  - name: postgresql
+    version: 12.1.6
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: 17.3.17
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: rabbitmq
+    version: 11.2.2
+    repository: https://charts.bitnami.com/bitnami
+    condition: rabbitmq.enabled
+  - name: common
+    version: 2.2.4
+    repository: https://charts.bitnami.com/bitnami
+    tags:
+      - bitnami-common
+type: application
+version: 2.31.1
+appVersion: 8.23.1

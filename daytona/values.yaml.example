@@ -1,0 +1,92 @@
+common:
+  domain: ${BASE_DOMAIN}
+  workspaceDomain: ${BASE_DOMAIN}
+
+  keycloak:
+    url: https://id.${BASE_DOMAIN}
+    realm: default
+    api:
+      clientSecret: ${KEYCLOAK_API_CLIENT_SECRET}
+    proxy:
+      clientId: proxy
+      clientSecret: ${KEYCLOAK_PROXY_CLIENT_SECRET}
+
+branding:
+  image: docker.io/codeany/daytona-branding:2
+
+imagePullSecrets:
+  - name: ${IMAGE_REGISTRY_NAME}
+
+image:
+  tag: cfb1ffb3
+  imagePullSecrets:
+    create: true
+    name: ${IMAGE_REGISTRY_NAME}
+    username: ${IMAGE_REGISTRY_USERNAME}
+    password: ${IMAGE_REGISTRY_PASSWORD}
+  
+postgresql:
+  enabled: true
+
+# externalDatabase:
+#   host: ${RDS_HOSTNAME}
+#   port: 5432
+#   username: daytona
+#   database: daytona
+#   existingSecret: postgres-daytona
+
+rabbitmq:
+  enabled: true
+  persistence:
+    enabled: true
+
+# externalAmqp:
+#   host: rabbitmq.daytona.svc.cluster.local
+#   username: user
+#   existingSecret: rabbitmq
+
+redis:
+  enabled: true
+  persistence:
+    enabled: false
+    storageClass: gp2
+  storageClass: gp2
+  global:
+    storageClass: gp2  
+
+proxy:
+  replicaCount: 3
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: ${BASE_DOMAIN}, *.${BASE_DOMAIN}
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/hostname: ${BASE_DOMAIN}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/success-codes: 200,404
+
+components:
+  api:
+    replicaCount: 3
+
+  workspaceVolumeInit:
+    name: workspace-volume-init-job
+    # Comma-separated list of images to pull
+    pullImages: codeany/universal
+    namespace: daytona
+    serviceAccountName: workspace-volume-init-job
+
+  docs:
+    appImageUrl: https://www.daytona.io/img/logo.svg
+    appLoginUrl: https://${BASE_DOMAIN}
+  
+configuration:
+  numberOfPrecreatedWorkspaces: 0
+  singleClusterDeployment: true
+  defaultWorkspaceClassName: sysbox-1
+  nodeSelector:
+    nodegroup: app
+  encryptionSecret: ${ENCRYPTION_SECRET}

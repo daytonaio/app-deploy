@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: proxy
+  {{- if .Values.ingress.annotations }}
+  annotations:
+  {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  tls:
+  - hosts:
+      - "{{ .Values.common.domain }}"
+      - "*.{{ .Values.common.domain }}"
+    secretName: wildcard-{{ .Values.common.domain | replace "." "-" }}
+  rules:
+    - host: {{ .Values.common.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  name: http
+    - host: api.{{ .Values.common.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "codelofts.api.fullname" . }}
+                port:
+                  name: {{ .Values.components.api.service.portNames.api }}
+    - host: docs.{{ .Values.common.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: docs
+                port:
+                  name: http
+    - host: notification.{{ .Values.common.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-server
+                port:
+                  name: http
+    - host: "*.{{ .Values.common.domain }}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workspace-proxy
+                port:
+                  name: http

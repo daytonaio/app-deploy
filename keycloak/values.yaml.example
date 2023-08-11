@@ -1,0 +1,74 @@
+auth:
+  adminUser: admin@${BASE_DOMAIN}
+
+postgresql:
+  enabled: true
+
+# externalDatabase:
+#   host: ${RDS_HOSTNAME}
+#   user: keycloak
+#   database: keycloak
+#   existingSecret: postgres-keycloak
+#   existingSecretPasswordKey: postgres-password
+
+production: true
+
+proxy: edge
+
+metrics:
+  enabled: true
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/realms/master/metrics"
+  prometheus.io/port: "8080"
+
+extraEnvVars:
+  - name: KEYCLOAK_EXTRA_ARGS
+    value: --features=token-exchange,admin-fine-grained-authz
+
+service:
+  type: NodePort
+
+ingress:
+  enabled: true
+  servicePort: http
+  hostname: id.${BASE_DOMAIN}
+  ingressClassName: alb
+  path: /realms/
+  pathType: Prefix
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # alb.ingress.kubernetes.io/target-type: ip
+    # alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400
+    external-dns.alpha.kubernetes.io/hostname: id.${BASE_DOMAIN}
+  extraPaths:
+    - path: /js/
+      pathType: Prefix
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+    - path: /resources/
+      pathType: Prefix
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+    - path: /robots.txt
+      pathType: Exact
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+
+networkPolicy:
+  enabled: true
+

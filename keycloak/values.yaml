@@ -1,0 +1,62 @@
+auth:
+  adminUser: admin@dtn.cloud-ide.co
+
+postgresql:
+  enabled: true
+
+production: true
+
+proxy: edge
+
+metrics:
+  enabled: true
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/realms/master/metrics"
+  prometheus.io/port: "8080"
+
+extraEnvVars:
+  - name: KEYCLOAK_EXTRA_ARGS
+    value: --features=token-exchange,admin-fine-grained-authz
+
+service:
+  type: NodePort
+
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+  enabled: true
+  servicePort: http
+  hostname: id.dtn.cloud-ide.co
+  ingressClassName: nginx
+  tls: true
+  path: /realms/
+  pathType: Prefix
+  extraPaths:
+    - path: /js/
+      pathType: Prefix
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+    - path: /resources/
+      pathType: Prefix
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+    - path: /robots.txt
+      pathType: Exact
+      backend:
+        service:
+          name: keycloak
+          port:
+            name: http
+
+networkPolicy:
+  enabled: true
+

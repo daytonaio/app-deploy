@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: domain-notification-publisher
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: domain-notification-publisher
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.domainNotificationPublisher.autoscaling.enabled }}
+  replicas: {{ .Values.components.domainNotificationPublisher.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: domain-notification-publisher
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: domain-notification-publisher
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        component: domain-notification-publisher
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: domain-notification-publisher
+          image: "{{ .Values.image.repository }}/{{ .Values.components.domainNotificationPublisher.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "30m"
+          env:
+            {{- if .Values.postgresql.enabled }}
+            - name: "DB_HOST"
+              value: {{ template "codeanywhere.postgres.name" . }}
+            - name: "DB_PORT"
+              value: "5432"
+            - name: "DB_USER"
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: "DB_PASS"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: {{ .Release.Name }}-postgresql
+            - name: "DB_NAME"
+              value: {{ .Values.postgresql.auth.database | quote }}
+            {{- else }}
+            - name: "DB_HOST"
+              value: {{ .Values.externalDatabase.host | quote }}
+            - name: "DB_PORT"
+              value: {{ .Values.externalDatabase.port | quote }}
+            - name: "DB_USER"
+              value: {{ .Values.externalDatabase.username | quote }}
+            - name: "DB_PASS"
+            {{- if .Values.externalDatabase.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key:  {{ .Values.externalDatabase.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalDatabase.password | quote }}
+            {{- end }}
+            - name: "DB_NAME"
+              value: {{ .Values.externalDatabase.database| quote }}
+            {{- end }}
+            {{- if .Values.rabbitmq.enabled }}
+            - name: "AMQP_HOST"
+              value: {{ template "codeanywhere.rabbitmq.name" . }}
+            - name: "AMQP_PORT"
+              value: "5672"
+            - name: "AMQP_USER"
+              value: "user"
+            - name: "AMQP_PASS"
+              value: "pass"
+            {{- else }}
+            - name: "AMQP_HOST"
+              value: {{ .Values.externalAmqp.host | quote }}
+            - name: "AMQP_PORT"
+              value: {{ .Values.externalAmqp.port | quote }}
+            - name: "AMQP_USER"
+              value: {{ .Values.externalAmqp.username | quote }}
+            - name: "AMQP_PASS"
+            {{- if .Values.externalAmqp.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalAmqp.existingSecret }}
+                  key:  {{ .Values.externalAmqp.existingSecretPasswordKey }}
+            {{- else }}
+              value: {{ .Values.externalAmqp.password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: "REDIS_HOST"
+              value: {{ template "codeanywhere.redis.name" . }}
+            - name: "REDIS_PORT"
+              value: "6379"
+            {{- else }}
+            - name: "REDIS_HOST"
+              value: {{ .Values.externalRedis.host | quote }}
+            - name: "REDIS_PORT"
+              value: {{ .Values.externalRedis.port | quote }}
+            {{- end }}
+            - name: "REDIS_KEYPREFIX"
+              value: "ca"
+            - name: "NOTIFICATION_BUS_CONSUMERS"
+              value: {{ .Values.notificationBus.maxConcurrentConsumers | quote }}
+          resources:
+            {{- toYaml .Values.components.domainNotificationPublisher.resources | nindent 12 }}
+

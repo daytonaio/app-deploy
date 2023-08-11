@@ -1,0 +1,68 @@
+{{- if .Values.configuration.singleClusterDeployment }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ include "codeanywhere.workspaceNamespace" . }}
+  labels: {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-internet-only
+  namespace: {{ include "codeanywhere.workspaceNamespace" . }}
+  labels: {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: rke2-ingress-nginx
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            # exclude private subnets (inter-pod communitation)
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-codeanywhere-services
+  namespace: {{ include "codeanywhere.workspaceNamespace" . }}
+  labels: {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              component: workspace-proxy
+              {{- include "codeanywhere.selectorLabels" . | nindent 14 }}
+          namespaceSelector: {}
+        - podSelector:
+            matchLabels:
+              component: workspace-ssh-gateway
+              {{- include "codeanywhere.selectorLabels" . | nindent 14 }}
+          namespaceSelector: {}
+        - podSelector:
+            matchLabels:
+              component: workspace-provisioner
+              {{- include "codeanywhere.selectorLabels" . | nindent 14 }}
+          namespaceSelector: {}
+{{- end }}

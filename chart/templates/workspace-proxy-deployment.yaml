@@ -1,0 +1,88 @@
+{{- if .Values.configuration.singleClusterDeployment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-proxy
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: workspace-proxy
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.workspaceProxy.autoscaling.enabled }}
+  replicas: {{ .Values.components.workspaceProxy.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: workspace-proxy
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: workspace-proxy
+      labels:
+        component: workspace-proxy
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        {{- if .Values.nodeSelector }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.nodeSelector "context" $) | nindent 8 }}
+        {{- end }}
+      initContainers:
+        - name: branding
+          image: "{{ .Values.image.repository }}/{{ .Values.components.branding.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['sh', '-c', 'cp -r /branding/workspace-status/* /assets/']
+          volumeMounts:
+            - name: branding
+              mountPath: /assets
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}/{{ .Values.components.workspaceProxy.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: WORKSPACE_BASE_DOMAIN
+              value: {{ .Values.common.domain }}
+            - name: WORKSPACE_NAMESPACE
+              value: workspace
+            - name: PORT
+              value: "3000"
+            - name: BASE_DOMAIN
+              value: {{ .Values.common.domain }}
+            - name: DASHBOARD_PAGE_URL
+              value: "https://{{ .Values.common.domain }}/"
+            - name: API_BASE_URL
+              value: "https://api.{{ .Values.common.domain }}"
+            - name: "OIDC_ISSUER"
+              value: {{ printf "%s/realms/%s" .Values.common.keycloak.url .Values.common.keycloak.realm | quote }}
+            - name: "OIDC_CLIENT_ID"
+              value: {{ .Values.common.keycloak.proxy.clientId | quote }}
+            - name: "OIDC_CLIENT_SECRET"
+              value: {{ .Values.common.keycloak.proxy.clientSecret | quote }}
+            - name: OIDC_BASE_URL
+              value: https://auth.{{ .Values.common.domain }}
+            - name: SESSION_SECRET
+              value: Wa2JQ}7M[!YbcD)=RwIf0yA0
+            - name: COOKIE_SECRET
+              value: tiCt^EBH.[^aRdgeP3W6FgM8
+#          TODO
+#          livenessProbe:
+#            httpGet:
+#              path: /heartbeat
+#              port: 3000
+#          readinessProbe:
+#            httpGet:
+#              path: /heartbeat
+#              port: 3000
+          resources:
+            {{- toYaml .Values.components.workspaceProxy.resources | nindent 12 }}
+          volumeMounts:
+            - name: branding
+              mountPath: /usr/src/app/dist/apps/workspace-status/branding
+      volumes:
+        - name: branding
+          emptyDir: {}
+{{- end }}

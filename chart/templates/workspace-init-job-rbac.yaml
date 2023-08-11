@@ -1,0 +1,42 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.components.workspaceVolumeInit.serviceAccountName }}
+rules:
+- apiGroups: [""]
+  resources: ["services", "services/status"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["list", "watch", "get", "create", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/status", "deployments/scale"]
+  verbs: ["get", "create", "patch", "update", "delete"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create", "get"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims", "persistentvolumeclaims/status"]
+  verbs: ["list", "get", "create", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["list", "get", "create", "delete"]
+- apiGroups: ["longhorn.io"]
+  resources: ["backingimages", "backingimages/status"]
+  verbs: ["list", "get", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.components.workspaceVolumeInit.serviceAccountName }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.components.workspaceVolumeInit.serviceAccountName }}
+  namespace: {{ .Values.components.workspaceVolumeInit.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Values.components.workspaceVolumeInit.serviceAccountName }}
+  apiGroup: rbac.authorization.k8s.io

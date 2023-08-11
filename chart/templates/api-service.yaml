@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "codelofts.api.fullname" . }}
+  {{- if or .Values.components.api.service.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- if or .Values.compontents.api.service.annotations .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.components.api.service.annotations "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: {{ template "codelofts.api.fullname" . }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.components.api.service.ports.api }}
+      targetPort: {{ .Values.components.api.containerPorts.api }}
+      protocol: TCP
+      name: {{ .Values.components.api.service.portNames.api }}
+  {{- if .Values.components.api.metrics.enabled }}
+    - port: {{ .Values.components.api.service.ports.metrics }}
+      targetPort: {{ .Values.components.api.containerPorts.metrics }}
+      protocol: TCP
+      name: {{ .Values.components.api.service.portNames.metrics }}
+  {{- end }}
+  selector: {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ template "codelofts.api.fullname" . }}

@@ -1,0 +1,74 @@
+common:
+  domain: dtn.cloud-ide.co
+  workspaceDomain: dtn.cloud-ide.co
+
+  keycloak:
+    url: https://id.dtn.cloud-ide.co
+    realm: default
+    api:
+      clientSecret: q3hoG87QOyOhAOuwP6cT98NI9BPhwqJq
+    proxy:
+      clientId: proxy
+      clientSecret: h4gFp4KXtaAYRUaY7SGs6HB3UITnXWrI
+
+branding:
+  image: docker.io/codeany/daytona-branding:2
+
+imagePullSecrets:
+  - name: gitlab-registry
+
+image:
+  tag: cfb1ffb3
+  imagePullSecret:
+    create: true
+    name: gitlab-registry
+    username: vedranjukic
+    password: glpat-vGXFL31hksfT589-suZr
+  
+postgresql:
+  enabled: true
+
+rabbitmq:
+  enabled: true
+  persistence:
+    enabled: true
+
+redis:
+  enabled: true
+
+proxy:
+  replicaCount: 3
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: dtn.cloud-ide.co, *.dtn.cloud-ide.co
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/hostname: dtn.cloud-ide.co
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/success-codes: 200,404
+
+components:
+  api:
+    replicaCount: 3
+
+  workspaceVolumeInit:
+    name: workspace-volume-init-job
+    # Comma-separated list of images to pull
+    pullImages: codeany/universal
+    namespace: daytona
+    serviceAccountName: workspace-volume-init-job
+
+  docs:
+    appImageUrl: https://www.dtn.io/img/logo.svg
+    appLoginUrl: https://dtn.cloud-ide.co
+  
+nodeSelector:
+    nodegroup:
+
+configuration:
+  numberOfPrecreatedWorkspaces: 0
+  singleClusterDeployment: true
+  defaultWorkspaceClassName: sysbox-1
+  encryptionSecret: ${ENCRYPTION_SECRET}

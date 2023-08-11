@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: dashboard
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.components.dashboard.autoscaling.enabled }}
+  replicas: {{ .Values.components.dashboard.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      component: dashboard
+      {{- include "codeanywhere.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      name: uscollaborationer-service
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        component: dashboard
+        {{- include "codeanywhere.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+#      serviceAccountName: {{ include "codeanywhere.serviceAccountName" . }}
+      initContainers:
+        - name: branding
+          image: "{{ .Values.image.repository }}/{{ .Values.components.branding.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['sh', '-c', 'cp -r /branding/dashboard/* /assets/']
+          volumeMounts:
+            - name: branding
+              mountPath: /assets
+      containers:
+        - name: dashboard
+          image: "{{ .Values.image.repository }}/{{ .Values.components.dashboard.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+          env:
+            - name: "PORT"
+              value: "3000"
+          livenessProbe:
+            exec:
+              command:
+              - service
+              - nginx
+              - status
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - service
+              - nginx
+              - status
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.components.dashboard.resources | nindent 12 }}
+          volumeMounts:
+            - name: branding
+              mountPath: /usr/share/nginx/html/branding
+            - name: config
+              mountPath: /usr/share/nginx/html/configuration.json
+              subPath: configuration.json
+      volumes:
+        - name: branding
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: dashboard-config
+

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-init-scripts
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+data:
+  init.sql: |
+{{ range $path, $_ :=  .Files.Glob  "config/db/*.sql" }}
+{{ $.Files.Get $path | indent 4 }}
+{{ end }}

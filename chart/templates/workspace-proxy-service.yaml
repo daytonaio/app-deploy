@@ -1,0 +1,25 @@
+{{- if .Values.configuration.singleClusterDeployment }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-proxy
+  {{- if .Values.components.workspaceProxy.service.annotations }}
+  annotations:
+  {{- range $key, $value := .Values.components.workspaceProxy.service.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+  labels:
+    app: {{ include "codeanywhere.fullname" . }}
+    component: workspace-proxy
+    {{- include "codeanywhere.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.components.workspaceProxy.service.type }}
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    component: workspace-proxy
+{{- end }}
