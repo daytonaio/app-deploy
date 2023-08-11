@@ -3,9 +3,6 @@
 
 ## Helm
 
-Create a new folder helm installation
-
-
 Rename (or copy) .example files to .yaml files.
 Replace all template strings with correct values in all .yaml files.
 
